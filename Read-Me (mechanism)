@@ -1,0 +1,3 @@
+Berisikan program-program algoritma yang digunakan untuk menghitung pencacahan neutron secara digital, dengan menggunakan detektor Scintillator. Perhitungan pencacahan neutron sangat berguna untuk penelitian terkait fisika partikel/nuklir
+Pencacahan yang menggunakan detektor scintillator, akan dihitung menggunakan counter dan pulser. Percobaan ini menggunakan counter ORTEC, namun bisa juga menggunakan counter yang lainnya, asalkan berdasar prinsip counter TTL.
+Nilai pencacahan berupa sinyal digital yang dikirimkan ke mikrokontroler yang digunakan, yaitu ESP32 WROOM, yang diharapkan untuk mengirimkan data secara digital. 
