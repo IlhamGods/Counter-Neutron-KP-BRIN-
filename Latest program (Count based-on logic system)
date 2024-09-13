@@ -1,0 +1,112 @@
+#include <WiFi.h>
+#include <UniversalTelegramBot.h>
+#include <WiFiClientSecure.h>
+#include <Wire.h>
+#include <RTClib.h>
+
+// Wi-Fi credentials
+const char* ssid = "BavariaIndonesia";
+const char* password = "EldenRing";
+
+// Telegram Bot Token
+#define BOT_TOKEN "6949427763:AAF2cV4ZKKCTciCWBdRbm_P7FciPy5TAWT"
+#define CHAT_ID "6026236730"
+
+// Wi-Fi client and Telegram bot
+WiFiClientSecure client;
+UniversalTelegramBot bot(BOT_TOKEN, client);
+
+// RTC
+RTC_DS3231 rtc;
+
+// Define the pins
+const int clockPin = 26;
+const int outputPins[] = {25, 33, 27};
+
+// Variables
+bool sendData = false;  // Flag to start/stop sending data
+unsigned long lastSendTime = 0;
+const unsigned long sendInterval = 500;  // Interval tosend data (500 ms)
+
+void handleNewMessages(int numNewMessages) {
+  for (int i = 0; i < numNewMessages; i++) {
+    String chat_id = String(bot.messages[i].chat_id);
+    String text = bot.messages[i].text;
+
+    if (text == "/start") {
+      sendData = true;
+      bot.sendMessage(chat_id, "Data sending started.", "");
+    } else if (text == "/stop") {
+      sendData = false;
+      bot.sendMessage(chat_id, "Data sending stopped.", "");
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+  Serial.println("Connected to WiFi");
+
+  // Set up clock pin and output pins
+  pinMode(clockPin, OUTPUT);
+  for (int i = 0; i < 3; i++) {
+    pinMode(outputPins[i], INPUT);
+  }
+
+  // Telegram Bot client setup
+  client.setInsecure();  // Disable SSL verification
+
+  // RTC setup
+  if (!rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+    while (1);
+  }
+  if (rtc.lostPower()) {
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  }
+}
+
+void loop() {
+  // Handle new Telegram messages
+ int numNewMessages =bot.getUpdates(bot.last_message_received + 1);
+  while (numNewMessages) {
+    handleNewMessages(numNewMessages);
+    numNewMessages =bot.getUpdates(bot.last_message_received + 1);
+  }
+
+  // Check if we should send data
+  if (sendData && (millis() - lastSendTime > sendInterval)) {
+    // Generate clock pulses
+    digitalWrite(clockPin, HIGH);
+    delay(10);
+    digitalWrite(clockPin, LOW);
+    delay(10);
+
+    // Read the counter outputs and RTC time
+    String message = "";
+    for (int i = 0; i < 3; i++) {
+      int counterValue = digitalRead(outputPins[i]);
+      message += "Counter Value from pin ";
+      message += outputPins[i];
+      message += ": ";
+  message += counterValue;
+     message += "\n";
+    }
+   // Get current time from RTC
+   DateTime now = rtc.now()
+   message += "Current Time: " + String(now.hour()) + ":"+String(now.minute()) + ":" + String(now.second()) + "\n";
+   message += "Date: " + String(now.day()) + "/" +String(now.month()) + "/" + String(now.year()) + "\n";
+
+    // Send the data to Telegram bot
+    bot.sendMessage(CHAT_ID, message, "");
+
+    lastSendTime = millis();  // Update the last send time
+  }
+}
